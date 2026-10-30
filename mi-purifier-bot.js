@@ -112,23 +112,48 @@ async function checkCountry(c) {
       return { ...c, status: 'no-category', total: 0, outOfStock: [], note: '无空气净化器品类' };
     }
 
-    // ② 该品类全部商品（page_index 从 0 起）
-    const data = await getJson(
-      base + '/search/product-list?cat_id=' + encodeURIComponent(catId) +
-        '&page_index=0&page_size=100&type=2&version=v4&cacheable=1'
-    );
-    const dp = (data && data.data_provider) || {};
-    const list = (dp.data && dp.data.product_list) || [];
-    const products = list.map((x) => {
-      const p = x.product || {};
-      return {
-        name: p.name || '(未命名)',
-        has_store: p.has_store,
-        is_sale: p.is_sale,
-        price: p.show_sales_price || '',
-        link: p.item_link || '',
-      };
-    });
+    // ② 该品类商品：优先用 search/product-list（全量列表）；小市场该索引常为空，回退到品类导航精选接口
+    let products = [];
+    try {
+      const data = await getJson(
+        base + '/search/product-list?cat_id=' + encodeURIComponent(catId) +
+          '&page_index=0&page_size=100&type=2&version=v4&cacheable=1'
+      );
+      const dp = (data && data.data_provider) || {};
+      const list = (dp.data && dp.data.product_list) || [];
+      products = list.map((x) => {
+        const p = x.product || {};
+        return {
+          name: p.name || '(未命名)',
+          has_store: p.has_store,
+          is_sale: p.is_sale,
+          price: p.show_sales_price || '',
+          link: p.item_link || '',
+        };
+      });
+    } catch (e) {
+      products = [];
+    }
+
+    // 回退：哈萨克/比利时/沙特/摩洛哥/阿联酋等小市场 search 索引为空，但品类导航精选接口有货
+    if (products.length === 0) {
+      try {
+        const navProducts = await getJson(
+          base + '/v2/cms/category/navigation/products?cate_id=' + encodeURIComponent(catId)
+        );
+        const plist = (navProducts && navProducts.products) || [];
+        products = plist.map((p) => ({
+          name: p.name || '(未命名)',
+          has_store: p.isOutOfStock ? 0 : 1,
+          is_sale: p.isOutOfStock ? 0 : 1,
+          price: '',
+          link: '',
+        }));
+      } catch (e) {
+        products = [];
+      }
+    }
+
     const outOfStock = products.filter((p) => p.has_store !== 1);
     return { ...c, status: 'ok', total: products.length, outOfStock };
   } catch (e) {

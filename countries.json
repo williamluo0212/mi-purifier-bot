@@ -32,7 +32,6 @@
     { "cc": "rs", "name": "塞尔维亚", "region": "东北欧", "domain": "ams-go.buy.mi.com/rs" },
     { "cc": "se", "name": "瑞典", "region": "东北欧", "domain": "ams-go.buy.mi.com/se" },
 
-    { "cc": "ru", "name": "俄罗斯", "region": "独联体", "domain": "ru-go.buy.mi.com/ru" },
     { "cc": "kz", "name": "哈萨克斯坦", "region": "独联体", "domain": "go.buy.mi.com/kz" },
 
     { "cc": "tr", "name": "土耳其", "region": "中东", "domain": "go.buy.mi.com/tr" },
