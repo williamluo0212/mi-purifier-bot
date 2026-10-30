@@ -13,6 +13,7 @@
  *   GitHub 上跑：仓库 Settings → Secrets → 新建 FEISHU_WEBHOOK，workflow 注入成环境变量。
  *
  * 数据来源：小米各地官网（mi.com）自身的商品接口。
+ * 巡检范围：只看「空气净化器」品类（整机），不含滤芯等配件。
  * 缺货判定：商品列表接口里 has_store 字段，1=有货，0=缺货。
  */
 
@@ -82,6 +83,20 @@ async function getJson(url, timeoutMs = HTTP_TIMEOUT) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 带重试的请求：网络抖动/超时时隔 1 秒重试，最多 tries 次（默认 2 次 = 失败后重试 1 次）
+async function getJsonRetry(url, tries = 2, timeoutMs = HTTP_TIMEOUT) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await getJson(url, timeoutMs);
+    } catch (e) {
+      lastErr = e;
+      if (i < tries - 1) await sleep(1000);
+    }
+  }
+  throw lastErr;
+}
+
 // ---------------------------------------------------------------------------
 // 3. 分类 & 商品
 // ---------------------------------------------------------------------------
@@ -102,25 +117,41 @@ function findAirPurifierCatId(navData) {
   return found;
 }
 
+// 只推送空气净化器主机本身：官网会把少量滤芯/滤芯套装/净水器混进 air-purifier 品类，
+// 按商品名剔除这些非主机商品（Filter/Filtre/Фильтр/滤芯/Faucet Water Purifier 等）
+function isAccessoryName(name) {
+  return /filt|фильтр|滤|faucet|water purifier/i.test(name || '');
+}
+
+// 捆绑套装（如「净化器 + 吸尘器」「净化器 + 风扇」）链接到 /product/bundle/，不是主机单品。
+// 套装缺货不代表主机缺货，主机单品另行统计，故剔除。
+function isBundleProduct(p) {
+  return (p.link || '').includes('/bundle/');
+}
+
 async function checkCountry(c) {
   const base = 'https://' + c.domain;
   try {
     // ① 分类树
-    const nav = await getJson(base + '/v2/item/category/nav');
+    const nav = await getJsonRetry(base + '/v2/item/category/nav');
     const catId = findAirPurifierCatId(nav);
     if (catId == null) {
       return { ...c, status: 'no-category', total: 0, outOfStock: [], note: '无空气净化器品类' };
     }
 
-    // ② 该品类商品：优先用 search/product-list（全量列表）；小市场该索引常为空，回退到品类导航精选接口
+    // ② 该品类商品：优先用 search/product-list（全量列表）。
+    //    注意区分「接口失败」和「确实没商品」——失败时不能装作查询成功，否则会误报 🟢/⚪。
     let products = [];
+    let searchOk = false;
+    let source = 'search';
     try {
-      const data = await getJson(
+      const data = await getJsonRetry(
         base + '/search/product-list?cat_id=' + encodeURIComponent(catId) +
           '&page_index=0&page_size=100&type=2&version=v4&cacheable=1'
       );
       const dp = (data && data.data_provider) || {};
       const list = (dp.data && dp.data.product_list) || [];
+      searchOk = true; // 接口正常应答（哪怕列表为空）
       products = list.map((x) => {
         const p = x.product || {};
         return {
@@ -132,13 +163,14 @@ async function checkCountry(c) {
         };
       });
     } catch (e) {
-      products = [];
+      searchOk = false;
     }
 
-    // 回退：哈萨克/比利时/沙特/摩洛哥/阿联酋等小市场 search 索引为空，但品类导航精选接口有货
+    // ③ 回退：个别小市场 search 索引为空，品类导航精选接口有几款精选（非全量）。
+    //    回退数据标 source:'featured'，看板上提示「仅精选 N 款」，不冒充全量。
     if (products.length === 0) {
       try {
-        const navProducts = await getJson(
+        const navProducts = await getJsonRetry(
           base + '/v2/cms/category/navigation/products?cate_id=' + encodeURIComponent(catId)
         );
         const plist = (navProducts && navProducts.products) || [];
@@ -149,13 +181,26 @@ async function checkCountry(c) {
           price: '',
           link: '',
         }));
+        if (products.length > 0) source = 'featured';
       } catch (e) {
-        products = [];
+        // 回退也失败：只有主接口曾经成功时才能断言「无商品」，否则算查询失败
+        if (!searchOk) {
+          return { ...c, status: 'error', total: 0, outOfStock: [], error: 'search 与回退接口均失败' };
+        }
       }
     }
 
+    if (products.length === 0 && !searchOk) {
+      // 全量接口失败、回退也没拿到东西 → 无法判断，报查询失败（⚫），不报假的有货/无货
+      return { ...c, status: 'error', total: 0, outOfStock: [], error: 'search 接口失败且回退无数据' };
+    }
+
+    // ④ 只保留空气净化器主机本身：滤芯、滤芯套装（如「4 Lite + Filter」）、
+    //    捆绑套装（如「净化器 + 吸尘器」）、净水器等剔除
+    products = products.filter((p) => !isAccessoryName(p.name) && !isBundleProduct(p));
+
     const outOfStock = products.filter((p) => p.has_store !== 1);
-    return { ...c, status: 'ok', total: products.length, outOfStock };
+    return { ...c, status: 'ok', total: products.length, outOfStock, source };
   } catch (e) {
     return { ...c, status: 'error', total: 0, outOfStock: [], error: e.message };
   }
@@ -174,15 +219,31 @@ function beijingDateStr() {
   return `${y}-${m}-${d}`;
 }
 
+// 缺货率：缺货主机数 / 上架主机数（%），四舍五入
+function rateStr(r) {
+  const rate = r.total ? Math.round((r.outOfStock.length * 100) / r.total) : 0;
+  return `缺货率 ${rate}%（${r.outOfStock.length}/${r.total} 款）`;
+}
+
+// TOP3 缺货国家：按缺货款数降序，款数相同则缺货率高者优先
+function top3Oos(results) {
+  return results
+    .filter((r) => r.status === 'ok' && r.outOfStock.length > 0)
+    .sort((a, b) =>
+      b.outOfStock.length - a.outOfStock.length ||
+      b.outOfStock.length / (b.total || 1) - a.outOfStock.length / (a.total || 1) ||
+      a.name.localeCompare(b.name)
+    )
+    .slice(0, 3);
+}
+
 function buildPlainText(results, dateStr) {
   const cfg = loadCountries();
-  const lines = [`🌬️ 小米空气净化器缺货日报 · ${dateStr}`, ''];
-  const okList = results.filter((r) => r.status === 'ok');
-  const oosCount = okList.filter((r) => r.outOfStock.length > 0).length;
-  const inStockCount = okList.filter((r) => r.total > 0 && r.outOfStock.length === 0).length;
-  const emptyCount = okList.filter((r) => r.total === 0).length;
-  const sum = `缺货 ${oosCount} 国 · 有货 ${inStockCount} 国` + (emptyCount ? ` · 无商品 ${emptyCount} 国` : '');
-  lines.push(sum);
+  const lines = [`🌬️ 小米空净米网缺货日报 · ${dateStr}`, ''];
+  const top = top3Oos(results);
+  lines.push(top.length
+    ? `TOP3 缺货品类数量：${top.map((r) => `${r.name} ${r.outOfStock.length} 款`).join(' · ')}`
+    : 'TOP3 缺货品类数量：今日无缺货 🎉');
   lines.push('');
 
   for (const region of (cfg.regions_order || [])) {
@@ -190,22 +251,23 @@ function buildPlainText(results, dateStr) {
     if (!inRegion.length) continue;
     lines.push(`【${region}】`);
     for (const r of inRegion) {
+      const feat = r.source === 'featured' ? `（仅精选 ${r.total} 款）` : '';
       if (r.status === 'no-category') {
         lines.push(`  ⚪ ${r.name} · 无净化器品类`);
       } else if (r.status === 'error') {
         lines.push(`  ⚫ ${r.name} · 查询失败`);
       } else if (r.outOfStock.length > 0) {
-        lines.push(`  🔴 ${r.name} · ${r.outOfStock.length} 款缺货`);
+        lines.push(`  🔴 ${r.name} · ${rateStr(r)}${feat}`);
         for (const p of r.outOfStock) lines.push(`      - ${p.name}`);
       } else if (r.total === 0) {
         lines.push(`  ⚪ ${r.name} · 无商品`);
       } else {
-        lines.push(`  🟢 ${r.name} · 有货`);
+        lines.push(`  🟢 ${r.name} · ${rateStr(r)}${feat}`);
       }
     }
     lines.push('');
   }
-  lines.push('数据来源：小米各地官网（mi.com）· 每日自动巡检');
+  lines.push('数据来源：小米各地官网（mi.com）· 空气净化器主机每日巡检');
   return lines.join('\n');
 }
 
@@ -214,14 +276,11 @@ function buildCard(results, dateStr) {
   const elements = [];
   const md = (content) => ({ tag: 'div', text: { tag: 'lark_md', content } });
 
-  const okList = results.filter((r) => r.status === 'ok');
-  const oosList = okList.filter((r) => r.outOfStock.length > 0);
-  const inStockList = okList.filter((r) => r.total > 0 && r.outOfStock.length === 0);
-  const emptyList = okList.filter((r) => r.total === 0);
-  const summary = `**缺货 ${oosList.length} 国 · 有货 ${inStockList.length} 国**` +
-    (emptyList.length ? ` · 无商品 ${emptyList.length} 国` : '') +
-    `（有净化器品类共 ${okList.length} 国）`;
-  elements.push(md(summary));
+  // 开头：TOP3 缺货品类数量国家
+  const top = top3Oos(results);
+  elements.push(md(top.length
+    ? `**TOP3 缺货品类数量**：${top.map((r) => `**${r.name}** ${r.outOfStock.length} 款`).join(' · ')}`
+    : '**TOP3 缺货品类数量**：今日无缺货 🎉'));
   elements.push({ tag: 'hr' });
 
   for (const region of (cfg.regions_order || [])) {
@@ -229,17 +288,18 @@ function buildCard(results, dateStr) {
     if (!inRegion.length) continue;
     elements.push(md(`**【${region}】**`));
     for (const r of inRegion) {
+      const feat = r.source === 'featured' ? `（仅精选 ${r.total} 款）` : '';
       if (r.status === 'no-category') {
         elements.push(md(`⚪ ${r.name} · 无净化器品类`));
       } else if (r.status === 'error') {
         elements.push(md(`⚫ ${r.name} · 查询失败`));
       } else if (r.outOfStock.length > 0) {
         const names = r.outOfStock.map((p) => `　　- ${p.name}`).join('\n');
-        elements.push(md(`🔴 **${r.name}** · ${r.outOfStock.length} 款缺货\n${names}`));
+        elements.push(md(`🔴 **${r.name}** · ${rateStr(r)}${feat}\n${names}`));
       } else if (r.total === 0) {
         elements.push(md(`⚪ ${r.name} · 无商品`));
       } else {
-        elements.push(md(`🟢 ${r.name} · 有货`));
+        elements.push(md(`🟢 ${r.name} · ${rateStr(r)}${feat}`));
       }
     }
     elements.push({ tag: 'hr' });
@@ -247,13 +307,13 @@ function buildCard(results, dateStr) {
 
   elements.push({
     tag: 'note',
-    elements: [{ tag: 'plain_text', content: '数据来源：小米各地官网（mi.com）· 每日自动巡检' }],
+    elements: [{ tag: 'plain_text', content: '数据来源：小米各地官网（mi.com）· 空气净化器主机每日巡检' }],
   });
 
   return {
     config: { wide_screen_mode: true },
     header: {
-      title: { tag: 'plain_text', content: `🌬️ 小米空气净化器缺货日报 · ${dateStr}` },
+      title: { tag: 'plain_text', content: `🌬️ 小米空净米网缺货日报 · ${dateStr}` },
       template: 'blue',
     },
     elements,
@@ -291,6 +351,10 @@ async function main() {
   let countries = cfg.countries || [];
   const only = parseOnlyArg();
   if (only) countries = countries.filter((c) => only.has(c.cc));
+  if (only && countries.length === 0) {
+    console.error('【错误】--only 没有匹配到任何国家，可用的国家代码：' + (cfg.countries || []).map((c) => c.cc).join(', '));
+    process.exit(1);
+  }
 
   console.log(`开始巡检 ${countries.length} 个国家...`);
 
