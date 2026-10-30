@@ -242,8 +242,8 @@ function buildPlainText(results, dateStr) {
   const lines = [`🌬️ 小米空净米网缺货日报 · ${dateStr}`, ''];
   const top = top3Oos(results);
   lines.push(top.length
-    ? `TOP3 缺货品类数量：${top.map((r) => `${r.name} ${r.outOfStock.length} 款`).join(' · ')}`
-    : 'TOP3 缺货品类数量：今日无缺货 🎉');
+    ? `TOP3 缺货国家（按品类数量）：${top.map((r) => `${r.name} ${r.outOfStock.length} 款`).join(' · ')}`
+    : 'TOP3 缺货国家（按品类数量）：今日无缺货 🎉');
   lines.push('');
 
   for (const region of (cfg.regions_order || [])) {
@@ -279,8 +279,8 @@ function buildCard(results, dateStr) {
   // 开头：TOP3 缺货品类数量国家
   const top = top3Oos(results);
   elements.push(md(top.length
-    ? `**TOP3 缺货品类数量**：${top.map((r) => `**${r.name}** ${r.outOfStock.length} 款`).join(' · ')}`
-    : '**TOP3 缺货品类数量**：今日无缺货 🎉'));
+    ? `**TOP3 缺货国家（按品类数量）**：${top.map((r) => `**${r.name}** ${r.outOfStock.length} 款`).join(' · ')}`
+    : '**TOP3 缺货国家（按品类数量）**：今日无缺货 🎉'));
   elements.push({ tag: 'hr' });
 
   for (const region of (cfg.regions_order || [])) {
