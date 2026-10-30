@@ -1,0 +1,72 @@
+# 每天定时巡检全球小米官网空气净化器缺货情况，推送到飞书群
+#
+# 跑在 GitHub 的服务器上，不依赖你自己的电脑。
+# 密钥放在仓库 Settings → Secrets and variables → Actions → FEISHU_WEBHOOK。
+#
+# GitHub 官方明确说 schedule「不保证送达」，所以分两层：
+#   主力：cron-job.org 每天北京 09:00 调 GitHub API 触发 workflow_dispatch（准点）
+#   兜底：下面 4 个 cron（09:07 / 09:27 / 09:47 / 10:17），GitHub 爱触发哪个触发哪个
+#   去重：开头的 guard 步骤查「今天已成功发过没」，发过就跳过，一天最多发一次
+name: 小米空气净化器缺货日报
+
+on:
+  schedule:
+    # 都是北京时间；全部避开整点
+    - cron: '7 9 * * *'
+      timezone: "Asia/Shanghai"
+    - cron: '27 9 * * *'
+      timezone: "Asia/Shanghai"
+    - cron: '47 9 * * *'
+      timezone: "Asia/Shanghai"
+    - cron: '17 10 * * *'
+      timezone: "Asia/Shanghai"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '今天已经发过也强制再发一次（测试用）'
+        type: boolean
+        default: false
+
+# 同一时间只允许一个实例在跑；后到的排队，避免重复发送
+concurrency:
+  group: mi-purifier-daily
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    # 34 个国家 × 每个 2 个请求，正常 1-2 分钟跑完；给 20 分钟容错
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: 今天已发过就跳过
+        id: guard
+        if: ${{ !inputs.force }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          today=$(date -u +%F)
+          n=$(gh run list -R "$GITHUB_REPOSITORY" --workflow mi-purifier.yml \
+                --status success --created "$today" --json databaseId --jq 'length') || n=0
+          n=${n:-0}
+          echo "UTC $today 已成功运行 $n 次"
+          if [ "$n" -gt 0 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "今天已经发过了，本次跳过，不重复发送。"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.skip != 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.skip != 'true'
+        with:
+          node-version: '20'
+
+      - name: 巡检并发送到飞书
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+        run: node mi-purifier-bot.js

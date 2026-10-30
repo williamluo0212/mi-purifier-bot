@@ -1,0 +1,4 @@
+{
+  "_说明": "复制本文件为 config.local.json，填入真实值。config.local.json 不要发给任何人、不要上传到网盘或 git。",
+  "feishu_webhook": "https://open.feishu.cn/open-apis/bot/v2/hook/把这一段换成你的"
+}

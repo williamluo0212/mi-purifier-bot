@@ -1,0 +1,45 @@
+{
+  "_说明": "小米全球面向2C官网中「有空气净化器品类」的站点清单。domain 是该国商品接口的 goSite 域名（已逐个探测确认）。category_tag 统一用 air-purifier 在分类树里动态查找，不写死 cat_id（各国 cat_id 不同）。台湾/俄罗斯当前分类树里暂无空气净化器，脚本会自动跳过并标记。",
+  "regions_order": ["东亚/东南亚", "欧洲", "独联体/中亚", "中东", "非洲", "拉美"],
+  "countries": [
+    { "cc": "hk", "name": "香港", "region": "东亚/东南亚", "domain": "go.buy.mi.com/hk" },
+    { "cc": "tw", "name": "台湾", "region": "东亚/东南亚", "domain": "go.buy.mi.com/tw" },
+    { "cc": "in", "name": "印度", "region": "东亚/东南亚", "domain": "in-go.buy.mi.com/in" },
+    { "cc": "id", "name": "印度尼西亚", "region": "东亚/东南亚", "domain": "go.buy.mi.co.id/id" },
+    { "cc": "my", "name": "马来西亚", "region": "东亚/东南亚", "domain": "go.buy.mi.com/my" },
+    { "cc": "ph", "name": "菲律宾", "region": "东亚/东南亚", "domain": "go.buy.mi.com/ph" },
+    { "cc": "sg", "name": "新加坡", "region": "东亚/东南亚", "domain": "go.buy.mi.com/sg" },
+    { "cc": "th", "name": "泰国", "region": "东亚/东南亚", "domain": "go.buy.mi.com/th" },
+    { "cc": "vn", "name": "越南", "region": "东亚/东南亚", "domain": "go.buy.mi.com/vn" },
+
+    { "cc": "uk", "name": "英国", "region": "欧洲", "domain": "ams-go.buy.mi.com/uk" },
+    { "cc": "de", "name": "德国", "region": "欧洲", "domain": "ams-go.buy.mi.com/de" },
+    { "cc": "fr", "name": "法国", "region": "欧洲", "domain": "ams-go.buy.mi.com/fr" },
+    { "cc": "it", "name": "意大利", "region": "欧洲", "domain": "ams-go.buy.mi.com/it" },
+    { "cc": "es", "name": "西班牙", "region": "欧洲", "domain": "ams-go.buy.mi.com/es" },
+    { "cc": "nl", "name": "荷兰", "region": "欧洲", "domain": "ams-go.buy.mi.com/nl" },
+    { "cc": "be", "name": "比利时", "region": "欧洲", "domain": "ams-go.buy.mi.com/be" },
+    { "cc": "at", "name": "奥地利", "region": "欧洲", "domain": "ams-go.buy.mi.com/at" },
+    { "cc": "cz", "name": "捷克", "region": "欧洲", "domain": "ams-go.buy.mi.com/cz" },
+    { "cc": "hu", "name": "匈牙利", "region": "欧洲", "domain": "ams-go.buy.mi.com/hu" },
+    { "cc": "pl", "name": "波兰", "region": "欧洲", "domain": "ams-go.buy.mi.com/pl" },
+    { "cc": "ro", "name": "罗马尼亚", "region": "欧洲", "domain": "ams-go.buy.mi.com/ro" },
+    { "cc": "rs", "name": "塞尔维亚", "region": "欧洲", "domain": "ams-go.buy.mi.com/rs" },
+    { "cc": "se", "name": "瑞典", "region": "欧洲", "domain": "ams-go.buy.mi.com/se" },
+    { "cc": "gr", "name": "希腊", "region": "欧洲", "domain": "go.buy.mi.com/gr" },
+    { "cc": "ua", "name": "乌克兰", "region": "欧洲", "domain": "go.buy.mi.com/ua" },
+
+    { "cc": "ru", "name": "俄罗斯", "region": "独联体/中亚", "domain": "ru-go.buy.mi.com/ru" },
+    { "cc": "kz", "name": "哈萨克斯坦", "region": "独联体/中亚", "domain": "go.buy.mi.com/kz" },
+
+    { "cc": "tr", "name": "土耳其", "region": "中东", "domain": "go.buy.mi.com/tr" },
+    { "cc": "sa", "name": "沙特阿拉伯", "region": "中东", "domain": "go.buy.mi.com/sa" },
+
+    { "cc": "ma", "name": "摩洛哥", "region": "非洲", "domain": "go.buy.mi.com/ma" },
+
+    { "cc": "mx", "name": "墨西哥", "region": "拉美", "domain": "go.buy.mi.com/mx" },
+    { "cc": "co", "name": "哥伦比亚", "region": "拉美", "domain": "go.buy.mi.com/co" },
+    { "cc": "cl", "name": "智利", "region": "拉美", "domain": "go.buy.mi.com/cl" },
+    { "cc": "pe", "name": "秘鲁", "region": "拉美", "domain": "go.buy.mi.com/pe" }
+  ]
+}
