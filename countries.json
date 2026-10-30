@@ -1,6 +1,6 @@
 {
   "_说明": "小米全球面向2C官网中「有空气净化器品类」的站点清单。domain 是该国商品接口的 goSite 域名（已逐个探测确认）。category_tag 统一用 air-purifier 在分类树里动态查找，不写死 cat_id（各国 cat_id 不同）。台湾/俄罗斯当前分类树里暂无空气净化器，脚本会自动跳过并标记。",
-  "regions_order": ["东亚", "东南亚", "印度尼西亚", "南亚", "西欧", "东北欧", "独联体", "中东", "非洲", "拉美"],
+  "regions_order": ["东亚", "东南亚", "印度尼西亚", "西欧", "东北欧", "独联体", "中东", "非洲", "拉美"],
   "countries": [
     { "cc": "hk", "name": "中国香港", "region": "东亚", "domain": "go.buy.mi.com/hk" },
     { "cc": "tw", "name": "中国台湾", "region": "东亚", "domain": "go.buy.mi.com/tw" },
@@ -15,8 +15,6 @@
     { "cc": "vn", "name": "越南", "region": "东南亚", "domain": "go.buy.mi.com/vn" },
 
     { "cc": "id", "name": "印度尼西亚", "region": "印度尼西亚", "domain": "go.buy.mi.co.id/id" },
-
-    { "cc": "in", "name": "印度", "region": "南亚", "domain": "in-go.buy.mi.com/in" },
 
     { "cc": "uk", "name": "英国", "region": "西欧", "domain": "ams-go.buy.mi.com/uk" },
     { "cc": "de", "name": "德国", "region": "西欧", "domain": "ams-go.buy.mi.com/de" },
@@ -33,13 +31,12 @@
     { "cc": "ro", "name": "罗马尼亚", "region": "东北欧", "domain": "ams-go.buy.mi.com/ro" },
     { "cc": "rs", "name": "塞尔维亚", "region": "东北欧", "domain": "ams-go.buy.mi.com/rs" },
     { "cc": "se", "name": "瑞典", "region": "东北欧", "domain": "ams-go.buy.mi.com/se" },
-    { "cc": "gr", "name": "希腊", "region": "东北欧", "domain": "go.buy.mi.com/gr" },
-    { "cc": "ua", "name": "乌克兰", "region": "东北欧", "domain": "go.buy.mi.com/ua" },
 
     { "cc": "ru", "name": "俄罗斯", "region": "独联体", "domain": "ru-go.buy.mi.com/ru" },
     { "cc": "kz", "name": "哈萨克斯坦", "region": "独联体", "domain": "go.buy.mi.com/kz" },
 
     { "cc": "tr", "name": "土耳其", "region": "中东", "domain": "go.buy.mi.com/tr" },
+    { "cc": "ae", "name": "阿联酋", "region": "中东", "domain": "go.buy.mi.com/ae" },
     { "cc": "sa", "name": "沙特阿拉伯", "region": "中东", "domain": "go.buy.mi.com/sa" },
 
     { "cc": "ma", "name": "摩洛哥", "region": "非洲", "domain": "go.buy.mi.com/ma" },
